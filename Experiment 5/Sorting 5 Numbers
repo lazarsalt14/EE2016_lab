@@ -1,0 +1,65 @@
+.EQU array_size = 5        ; Define the size of the array as 5
+
+.dseg
+.org SRAM_START             ; Start of SRAM
+sArr: .BYTE array_size      ; Reserve space in SRAM for 'array_size' bytes
+
+.cseg
+.ORG 0x0000                 ; Start of the code segment at address 0x0000
+
+; Load the two-byte address of the NUM array (stored in flash memory) into the Z register
+LDI ZL, LOW(NUM<<1)         ; Load the low byte of the NUM array's address into ZL
+LDI ZH, HIGH(NUM<<1)        ; Load the high byte of the NUM array's address into ZH
+
+; Initialize YL to point to the start of sArr in SRAM
+LDI YL, sArr                ; Load the SRAM address of sArr into YL
+LDI R17, array_size         ; R17 is counter
+storing:                    ; Label for the loop that transfers data from flash to SRAM
+LPM R16, Z+                 ; Load a byte from flash memory 
+ST Y+, R16                  ; Store the byte from R16 into SRAM (sArr), increment Y
+DEC R17                     ; Decrement the counter R17
+BRNE storing                
+
+; Reset the counter and pointers for sorting
+LDI R17, array_size-1       ; R17 is outer loop counter
+LDI XL, sArr                ; Load the start address of sArr into XL 
+LDI YL, sArr                ; Load the start address of sArr into YL 
+
+loop1:                      ; Start of the outer loop (Bubble Sort)
+    LDI R18, array_size-1   ; Load array_size-1 into R18 (inner loop counter)
+
+    loop2:                  ; Start of the inner loop for comparing and swapping
+        LD R20, Y+          ; Load the current element from sArr into R20, increment Y
+        LD R21, Y           ; Load the next element into R21 (no increment)
+
+        CP R21, R20         ; Compare the current and next elements (R21 with R20)
+        BRCC no_swap        ; If R21 >= R20, no need to swap, branch to no_swap
+
+        ; Swap R20 and R21 if R21 < R20
+        MOV R23, R20        ; Move R20 (current element) into R23 (temporary register)
+        MOV R20, R21        ; Move R21 (next element) into R20
+        MOV R21, R23        ; Move R23 (old current element) into R21
+
+    no_swap:                ; No swap occurred, continue
+        DEC R18             ; Decrement the inner loop counter (R18)
+        ST X+, R20          ; Store the new value of R20 in sArr, increment X
+        ST X, R21           ; Store the new value of R21 in sArr
+
+        BRNE loop2          ; If R18 is not zero, branch to loop2 and continue
+
+    DEC R17                 ; Decrement the outer loop counter (R17)
+    LDI XL, sArr            ; Reset the X register to the start of sArr
+    LDI YL, sArr            ; Reset the Y register to the start of sArr
+
+    BRNE loop1              ; If R17 is not zero, branch to loop1 and continue the outer loop
+
+; Load the sorted values from SRAM for further use
+LDS R20, 0x60               ; Loading elements from SRAMinto R20
+LDS R21, 0x61               
+LDS R22, 0x62               
+LDS R23, 0x63               
+LDS R24, 0x64               
+NOP                         
+
+.org 0x0100                 ; Starting address in flash memory for NUM array
+NUM: .db 0x05, 0x34, 0xFF, 0x11, 0X01 ; Define an array in flash memory
