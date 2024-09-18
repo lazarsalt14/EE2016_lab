@@ -1,0 +1,70 @@
+.org 0
+rjmp reset ; on reset, program starts here
+
+
+.org 0x002 ; Interrupt vector address for INT1.
+rjmp int1_ISR ;
+
+
+reset:
+ldi R16,0x70 ; setup the stack pointer to point to address 0x0070
+out spl,R16
+
+ldi R16,0
+out sph,R16
+
+
+ldi R16,3  ; make PB1 output
+out DDRB ,R16
+
+ldi R16,0   ; make PORTD input  (check this)
+out DDRD,R16
+
+ldi R16,8 ; use pull-up resistor for PD3
+out PORTD,R16
+
+in R16,gicr
+ori R16,0x80 ; enable INT1 interrupt
+out gicr,R16
+
+ldi R16,1 ; Turn off LED
+out PORTB,R16
+
+sei ; enable interrupts
+
+
+indefiniteloop:
+rjmp indefiniteloop
+
+
+int1_ISR: ; INT1 interrupt handler or ISR
+cli; clear interrupts
+in R16,SREG ; save status register SREG
+push R16
+ldi R16, 10 ; blink led 10 times
+mov R0,R16
+
+back5: ldi R16,02 ; Turn on LED
+out PORTB,R16
+delay1: LDI R16,0xFF  ; delay
+back2: LDI R17,0xFF
+back1: DEC R17
+BRNE back1
+DEC R16
+
+BRNE back2
+
+
+ldi R16,0 ; Turn off LED
+out PORTB,R16
+delay2: LDI R16,0xFF ; delay
+back3: LDI R17,0xFF
+back4: DEC R17
+BRNE back4
+DEC R16
+BRNE back3
+DEC R0
+BRNE back5 ; ; check if LED has blinked 10 times
+pop R16 ; retrieve status register
+out SREG,R16
+rjmp reset ; go back to main program
